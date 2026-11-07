@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ランダムウォーク シミュレーター (Random Walk Simulator)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-cyan: #38bdf8;
+      --accent-green: #4ade80;
+      --accent-red: #f87171;
+      --accent-yellow: #facc15;
+      --accent-purple: #c084fc;
+      --grid-line: rgba(255, 255, 255, 0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .controls-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 8px;
+      margin-bottom: 4px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-group label span.val {
+      color: var(--accent-cyan);
+      font-family: 'Fira Code', monospace;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    button#runBtn {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    }
+
+    button#runBtn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.6);
+    }
+
+    button#resetBtn {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--panel-border);
+    }
+
+    button#resetBtn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-card .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .stat-card .value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .stat-card.head .value { color: var(--accent-green); }
+    .stat-card.tail .value { color: var(--accent-red); }
+    .stat-card.row .value { color: var(--accent-yellow); }
+    .stat-card.step .value { color: var(--accent-purple); }
+
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      background: #020617;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .status-banner {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      border: 1px dashed var(--panel-border);
+    }
+
+    .status-banner.running {
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .status-banner.hit {
+      background: rgba(248, 113, 113, 0.15);
+      color: var(--accent-red);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      animation: pulse 1.5s infinite;
+    }
+
+    .status-banner.completed {
+      background: rgba(74, 222, 128, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(74, 222, 128, 0.4);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .logs-panel {
+      font-size: 0.85rem;
+    }
+
+    .logs-panel summary {
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: 500;
+      user-select: none;
+    }
+
+    .logs-panel summary:hover {
+      color: var(--text-main);
+    }
+
+    .log-list {
+      margin-top: 10px;
+      max-height: 120px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .log-item {
+      padding: 4px 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .log-item.hit { color: var(--accent-red); }
+    .log-item.safe { color: var(--accent-green); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>ランダムウォーク シミュレーター</h1>
+    <p>1次元ランダムウォークの軌跡と壁判定のビジュアル化</p>
+  </header>
+
+  <div class="container">
+    <!-- 左側：コントロール＆ステータスパネル -->
+    <div class="glass-panel controls-panel">
+      <h2 class="panel-title">コントロール</h2>
+
+      <div class="form-group">
+        <label>
+          遅延速度 (ms)
+          <span id="speedVal" class="val">30ms</span>
+        </label>
+        <input type="range" id="speedInput" min="0" max="200" value="30" step="5">
+      </div>
+
+      <div class="form-group">
+        <label>
+          ステップ数
+          <span id="stepsVal" class="val">100</span>
+        </label>
+        <input type="range" id="stepsInput" min="10" max="300" value="100" step="10">
+      </div>
+
+      <div class="form-group">
+        <label>
+          上の壁の高さ (Y座標)
+          <span id="wallVal" class="val">2</span>
+        </label>
+        <input type="range" id="wallInput" min="1" max="25" value="2" step="1">
+      </div>
+
+      <div class="btn-group">
+        <button id="runBtn">
+          ▶ 実行
+        </button>
+        <button id="resetBtn">
+          ↺ リセット
+        </button>
+      </div>
+
+      <h2 class="panel-title" style="margin-top: 10px;">リアルタイム情報</h2>
+
+      <div class="stats-grid">
+        <div class="stat-card step">
+          <span class="label">Step</span>
+          <span id="stepCount" class="value">0</span>
+        </div>
+        <div class="stat-card row">
+          <span class="label">現在地 (Y)</span>
+          <span id="rowPos" class="value">30</span>
+        </div>
+        <div class="stat-card head">
+          <span class="label">Head (上)</span>
+          <span id="headCount" class="value">0</span>
+        </div>
+        <div class="stat-card tail">
+          <span class="label">Tail (下)</span>
+          <span id="tailCount" class="value">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側：メイン画面（キャンバス ＆ ログ） -->
+    <div class="main-content">
+      <div class="canvas-container">
+        <canvas id="simCanvas" width="800" height="480"></canvas>
+      </div>
+
+      <div id="statusBanner" class="status-banner">
+        「▶ 実行」ボタンを押してシミュレーションを開始してください
+      </div>
+
+      <details class="glass-panel logs-panel">
+        <summary>実行履歴ログ</summary>
+        <div id="logList" class="log-list">
+          <!-- ログ項目がここに追加されます -->
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    // 定数
+    const COLS = 100;
+    const ROWS = 120;
+    const START_ROW = 30;
+
+    // DOM要素
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const runBtn = document.getElementById('runBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    const speedInput = document.getElementById('speedInput');
+    const speedVal = document.getElementById('speedVal');
+    const stepsInput = document.getElementById('stepsInput');
+    const stepsVal = document.getElementById('stepsVal');
+    const wallInput = document.getElementById('wallInput');
+    const wallVal = document.getElementById('wallVal');
+
+    const stepCountEl = document.getElementById('stepCount');
+    const rowPosEl = document.getElementById('rowPos');
+    const headCountEl = document.getElementById('headCount');
+    const tailCountEl = document.getElementById('tailCount');
+    const statusBanner = document.getElementById('statusBanner');
+    const logList = document.getElementById('logList');
+
+    // 状態変数
+    let isRunning = false;
+    let cancelRequested = false;
+    let trialCount = 0;
+
+    // スライダー連動
+    speedInput.addEventListener('input', (e) => {
+      speedVal.innerText = `${e.target.value}ms`;
+    });
+
+    stepsInput.addEventListener('input', (e) => {
+      stepsVal.innerText = e.target.value;
+    });
+
+    wallInput.addEventListener('input', (e) => {
+      wallVal.innerText = e.target.value;
+      if (!isRunning) drawInitialGrid();
+    });
+
+    // 初期化描画
+    function drawInitialGrid() {
+      const cellW = canvas.width / COLS;
+      const cellH = canvas.height / ROWS;
+
+      // 背景クリア
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 背景グリッド描画
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.lineWidth = 1;
+      
+      for (let r = 0; r <= ROWS; r += 10) {
+        ctx.beginPath();
+        ctx.moveTo(0, r * cellH);
+        ctx.lineTo(canvas.width, r * cellH);
+        ctx.stroke();
+      }
+
+      // スタートライン (行30) - 黄色
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+      ctx.fillRect(0, START_ROW * cellH, canvas.width, cellH * 0.8);
+      
+      ctx.fillStyle = '#facc15';
+      ctx.font = '10px Fira Code';
+      ctx.fillText('START (Y=30)', 8, START_ROW * cellH - 4);
+
+      // 上の壁ライン (設定値) - 赤破線
+      const wallY = parseInt(wallInput.value);
+      ctx.strokeStyle = '#f87171';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, wallY * cellH);
+      ctx.lineTo(canvas.width, wallY * cellH);
+      ctx.stroke();
+      ctx.setLineDash([]); // 戻す
+
+      ctx.fillStyle = '#f87171';
+      ctx.fillText(`WALL (Y=${wallY})`, 8, wallY * cellH - 4);
+    }
+
+    // シミュレーション実行
+    async function runSimulation() {
+      if (isRunning) return;
+
+      isRunning = true;
+      cancelRequested = false;
+      runBtn.disabled = true;
+
+      statusBanner.className = 'status-banner running';
+      statusBanner.innerText = 'シミュレーション実行中...';
+
+      drawInitialGrid();
+
+      const maxSteps = parseInt(stepsInput.value);
+      const wallRow = parseInt(wallInput.value);
+
+      const cellW = canvas.width / COLS;
+      const cellH = canvas.height / ROWS;
+
+      let row = START_ROW;
+      let col = 1;
+      let head = 0;
+      let tail = 0;
+
+      // 最初の地点描画
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
+
+      let hitWall = false;
+
+      for (let step = 1; step <= maxSteps; step++) {
+        if (cancelRequested) break;
+
+        const r = Math.random();
+        const bi = r <= 0.5 ? 0 : 1;
+
+        if (bi === 0) {
+          row += 1;
+          tail += 1;
+        } else {
+          row -= 1;
+          head += 1;
+        }
+
+        // 数値更新
+        stepCountEl.innerText = step;
+        rowPosEl.innerText = row;
+        headCountEl.innerText = head;
+        tailCountEl.innerText = tail;
+
+        // 点と軌跡を描画
+        ctx.fillStyle = bi === 1 ? '#4ade80' : '#f87171';
+        ctx.fillRect(col * cellW, row * cellH, cellW * 1.2, cellH * 1.2);
+
+        // 線で軌跡をつなぐ
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo((col - 1) * cellW + cellW / 2, (row + (bi === 1 ? 1 : -1)) * cellH + cellH / 2);
+        ctx.lineTo(col * cellW + cellW / 2, row * cellH + cellH / 2);
+        ctx.stroke();
+
+        // 壁判定
+        if (row <= wallRow) {
+          hitWall = true;
+          statusBanner.className = 'status-banner hit';
+          statusBanner.innerText = `⚠️ 上の壁 (Y=${wallRow}) に衝突しました！ Try Again.`;
+          break;
+        }
+
+        col += 1;
+
+        // 遅延処理
+        const delay = parseInt(speedInput.value);
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+
+      if (!hitWall && !cancelRequested) {
+        statusBanner.className = 'status-banner completed';
+        statusBanner.innerText = `✅ シミュレーション完了 (${maxSteps} ステップ到達)`;
+      }
+
+      // ログ追加
+      trialCount++;
+      const logItem = document.createElement('div');
+      logItem.className = `log-item ${hitWall ? 'hit' : 'safe'}`;
+      logItem.innerHTML = `
+        <span>#${trialCount} ${hitWall ? '壁衝突 💥' : '完走 🎉'}</span>
+        <span>Head: ${head} / Tail: ${tail} (最終Y: ${row})</span>
+      `;
+      logList.prepend(logItem);
+
+      isRunning = false;
+      runBtn.disabled = false;
+    }
+
+    // リセット処理
+    function resetSimulation() {
+      if (isRunning) {
+        cancelRequested = true;
+      }
+      stepCountEl.innerText = 0;
+      rowPosEl.innerText = START_ROW;
+      headCountEl.innerText = 0;
+      tailCountEl.innerText = 0;
+
+      statusBanner.className = 'status-banner';
+      statusBanner.innerText = '「▶ 実行」ボタンを押してシミュレーションを開始してください';
+
+      drawInitialGrid();
+    }
+
+    // イベントリスナー設定
+    runBtn.addEventListener('click', runSimulation);
+    resetBtn.addEventListener('click', resetSimulation);
+
+    // 初期描画実行
+    drawInitialGrid();
+  </script>
+</body>
+</html>
