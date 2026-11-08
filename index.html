@@ -245,22 +245,10 @@
       border: 1px solid rgba(56, 189, 248, 0.3);
     }
 
-    .status-banner.hit {
-      background: rgba(248, 113, 113, 0.15);
-      color: var(--accent-red);
-      border: 1px solid rgba(248, 113, 113, 0.4);
-      animation: pulse 1.5s infinite;
-    }
-
     .status-banner.completed {
       background: rgba(74, 222, 128, 0.15);
       color: var(--accent-green);
       border: 1px solid rgba(74, 222, 128, 0.4);
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
     }
 
     .logs-panel {
@@ -294,17 +282,15 @@
       border-radius: 4px;
       display: flex;
       justify-content: space-between;
+      color: var(--accent-green);
     }
-
-    .log-item.hit { color: var(--accent-red); }
-    .log-item.safe { color: var(--accent-green); }
   </style>
 </head>
 <body>
 
   <header>
     <h1>ランダムウォーク シミュレーター</h1>
-    <p>1次元ランダムウォークの軌跡と壁判定のビジュアル化</p>
+    <p>1次元ランダムウォークの軌跡ビジュアル化</p>
   </header>
 
   <div class="container">
@@ -328,14 +314,6 @@
         <input type="range" id="stepsInput" min="10" max="300" value="100" step="10">
       </div>
 
-      <div class="form-group">
-        <label>
-          上の壁の高さ (Y座標)
-          <span id="wallVal" class="val">2</span>
-        </label>
-        <input type="range" id="wallInput" min="1" max="25" value="2" step="1">
-      </div>
-
       <div class="btn-group">
         <button id="runBtn">
           ▶ 実行
@@ -354,7 +332,7 @@
         </div>
         <div class="stat-card row">
           <span class="label">現在地 (Y)</span>
-          <span id="rowPos" class="value">30</span>
+          <span id="rowPos" class="value">60</span>
         </div>
         <div class="stat-card head">
           <span class="label">Head (上)</span>
@@ -390,7 +368,7 @@
     // 定数
     const COLS = 100;
     const ROWS = 120;
-    const START_ROW = 30;
+    const START_ROW = 60; // 画面の上下真ん中 (120 / 2)
 
     // DOM要素
     const canvas = document.getElementById('simCanvas');
@@ -403,8 +381,6 @@
     const speedVal = document.getElementById('speedVal');
     const stepsInput = document.getElementById('stepsInput');
     const stepsVal = document.getElementById('stepsVal');
-    const wallInput = document.getElementById('wallInput');
-    const wallVal = document.getElementById('wallVal');
 
     const stepCountEl = document.getElementById('stepCount');
     const rowPosEl = document.getElementById('rowPos');
@@ -427,11 +403,6 @@
       stepsVal.innerText = e.target.value;
     });
 
-    wallInput.addEventListener('input', (e) => {
-      wallVal.innerText = e.target.value;
-      if (!isRunning) drawInitialGrid();
-    });
-
     // 初期化描画
     function drawInitialGrid() {
       const cellW = canvas.width / COLS;
@@ -452,26 +423,13 @@
         ctx.stroke();
       }
 
-      // スタートライン (行30) - 黄色
+      // スタートライン (中央: Y=60) - 黄色
       ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
       ctx.fillRect(0, START_ROW * cellH, canvas.width, cellH * 0.8);
       
       ctx.fillStyle = '#facc15';
       ctx.font = '10px Fira Code';
-      ctx.fillText('START (Y=30)', 8, START_ROW * cellH - 4);
-
-      // 上の壁ライン (設定値) - 赤破線
-      const wallY = parseInt(wallInput.value);
-      ctx.strokeStyle = '#f87171';
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(0, wallY * cellH);
-      ctx.lineTo(canvas.width, wallY * cellH);
-      ctx.stroke();
-      ctx.setLineDash([]); // 戻す
-
-      ctx.fillStyle = '#f87171';
-      ctx.fillText(`WALL (Y=${wallY})`, 8, wallY * cellH - 4);
+      ctx.fillText('START (Y=60)', 8, START_ROW * cellH - 4);
     }
 
     // シミュレーション実行
@@ -488,8 +446,6 @@
       drawInitialGrid();
 
       const maxSteps = parseInt(stepsInput.value);
-      const wallRow = parseInt(wallInput.value);
-
       const cellW = canvas.width / COLS;
       const cellH = canvas.height / ROWS;
 
@@ -501,8 +457,6 @@
       // 最初の地点描画
       ctx.fillStyle = '#38bdf8';
       ctx.fillRect(col * cellW, row * cellH, cellW, cellH);
-
-      let hitWall = false;
 
       for (let step = 1; step <= maxSteps; step++) {
         if (cancelRequested) break;
@@ -524,7 +478,7 @@
         headCountEl.innerText = head;
         tailCountEl.innerText = tail;
 
-        // 点と軌跡を描画
+        // 点描画
         ctx.fillStyle = bi === 1 ? '#4ade80' : '#f87171';
         ctx.fillRect(col * cellW, row * cellH, cellW * 1.2, cellH * 1.2);
 
@@ -536,14 +490,6 @@
         ctx.lineTo(col * cellW + cellW / 2, row * cellH + cellH / 2);
         ctx.stroke();
 
-        // 壁判定
-        if (row <= wallRow) {
-          hitWall = true;
-          statusBanner.className = 'status-banner hit';
-          statusBanner.innerText = `⚠️ 上の壁 (Y=${wallRow}) に衝突しました！ Try Again.`;
-          break;
-        }
-
         col += 1;
 
         // 遅延処理
@@ -553,7 +499,7 @@
         }
       }
 
-      if (!hitWall && !cancelRequested) {
+      if (!cancelRequested) {
         statusBanner.className = 'status-banner completed';
         statusBanner.innerText = `✅ シミュレーション完了 (${maxSteps} ステップ到達)`;
       }
@@ -561,9 +507,9 @@
       // ログ追加
       trialCount++;
       const logItem = document.createElement('div');
-      logItem.className = `log-item ${hitWall ? 'hit' : 'safe'}`;
+      logItem.className = 'log-item';
       logItem.innerHTML = `
-        <span>#${trialCount} ${hitWall ? '壁衝突 💥' : '完走 🎉'}</span>
+        <span>#${trialCount} 完了 🎉</span>
         <span>Head: ${head} / Tail: ${tail} (最終Y: ${row})</span>
       `;
       logList.prepend(logItem);
